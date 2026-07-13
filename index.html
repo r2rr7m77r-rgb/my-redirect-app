@@ -1,7 +1,600 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
-<meta http-equiv="refresh" content="0; url=https://compromise-instrument-compile-holdem.trycloudflare.com">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TV Player</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.min.js"></script>
+<!-- محرك المشغل الاحترافي (ملف منفصل) -->
+<script src="player-engine.js"></script>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root{
+  --accent:#8b5cf6; --accent2:#7c3aed; --accent3:#a78bfa;
+  --bg:#09070f; --surface:#130f1e; --surf2:#1c1730; --surf3:#251f3d;
+  --border:#2c2547; --text:#fff; --text2:#a39ec2; --text3:#5c5680;
+  --glow:rgba(139,92,246,.38); --glow-soft:rgba(139,92,246,.16);
+  --radius:16px; --radius-s:11px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',Tahoma,Arial,sans-serif;overflow:hidden;touch-action:manipulation;-webkit-font-smoothing:antialiased;}
+
+/* ══════ HOME (قائمة القنوات) ══════ */
+#home-screen{position:fixed;inset:0;z-index:110;background:radial-gradient(circle at 15% 0%,rgba(139,92,246,.14) 0%,transparent 45%),radial-gradient(circle at 90% 30%,rgba(124,58,237,.10) 0%,transparent 50%),var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+#home-screen.hidden{display:none;}
+#home-header{padding:22px 18px 14px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#home-header .logo-box{width:46px;height:46px;background:linear-gradient(145deg,var(--accent3),var(--accent2));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 20px var(--glow);flex-shrink:0;}
+#home-header h1{font-size:17px;font-weight:700;line-height:1.25;}
+#home-header p{font-size:12px;color:var(--text2);margin-top:3px;}
+#home-search-wrap{padding:14px 18px 6px;flex-shrink:0;}
+#home-search{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-s);padding:11px 14px;color:#fff;font-size:14px;outline:none;}
+#home-search::placeholder{color:var(--text3);}
+#home-search:focus{border-color:var(--accent);}
+#home-list{flex:1;overflow-y:auto;padding:12px 14px 26px;display:flex;flex-direction:column;gap:9px;}
+#home-list::-webkit-scrollbar{display:none;}
+.ch-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:transform .12s,background .12s,border-color .12s;}
+.ch-card:active{transform:scale(.97);background:var(--surf2);}
+.ch-card-logo{width:48px;height:48px;border-radius:12px;background:var(--surf2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;overflow:hidden;}
+.ch-card-logo img{width:100%;height:100%;object-fit:cover;}
+.ch-card-info{flex:1;min-width:0;}
+.ch-card-name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-card-desc{font-size:12px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-card-arrow{color:var(--text3);font-size:17px;flex-shrink:0;}
+#home-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
+#home-state .spin{width:40px;height:40px;border:3px solid rgba(139,92,246,.18);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;}
+#home-state-icon{font-size:44px;}
+#home-state-title{font-size:15px;font-weight:700;color:#fff;}
+#home-state-msg{font-size:13px;color:var(--text2);line-height:1.6;max-width:280px;}
+#home-retry-btn{margin-top:4px;background:linear-gradient(120deg,var(--accent3),var(--accent2));color:#fff;border:none;border-radius:var(--radius-s);padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px var(--glow);}
+#home-retry-btn:active{opacity:.85;}
+
+/* ══════ PICKER ══════ */
+#picker-screen{position:fixed;inset:0;z-index:100;background:radial-gradient(circle at 15% 0%,rgba(139,92,246,.14) 0%,transparent 45%),radial-gradient(circle at 90% 30%,rgba(124,58,237,.10) 0%,transparent 50%),var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+#picker-screen.hidden{display:none;}
+#picker-header{padding:22px 18px 16px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#picker-back{width:38px;height:38px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+#picker-header .logo-box{width:46px;height:46px;background:linear-gradient(145deg,var(--accent3),var(--accent2));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 20px var(--glow);flex-shrink:0;}
+#picker-header h1{font-size:17px;font-weight:700;line-height:1.25;}
+#picker-header p{font-size:12px;color:var(--text2);margin-top:3px;}
+#channel-hero{padding:22px 18px 8px;flex-shrink:0;display:flex;align-items:center;gap:15px;}
+#channel-logo-big{width:62px;height:62px;border-radius:var(--radius);background:var(--surf2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35);}
+#channel-logo-big img{width:100%;height:100%;object-fit:cover;}
+#hero-text{flex:1;min-width:0;}
+#channel-hero-name{font-size:21px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#channel-hero-desc{font-size:13px;color:var(--text2);margin-top:5px;line-height:1.45;}
+#quality-label{padding:16px 18px 9px;font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1.4px;text-transform:uppercase;flex-shrink:0;}
+#quality-list{flex:1;overflow-y:auto;padding:0 14px 26px;display:flex;flex-direction:column;gap:9px;}
+#quality-list::-webkit-scrollbar{display:none;}
+.q-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 15px;cursor:pointer;transition:transform .12s,background .12s,border-color .12s;}
+.q-card:active{transform:scale(.97);background:var(--surf2);}
+.q-card.recommended{border-color:var(--accent);background:linear-gradient(120deg,rgba(139,92,246,.10),rgba(139,92,246,.02));box-shadow:0 0 0 1px var(--glow-soft),0 8px 22px rgba(139,92,246,.10);}
+.q-card-icon{width:44px;height:44px;border-radius:11px;background:var(--surf2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.q-card.recommended .q-card-icon{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);}
+.q-card-info{flex:1;min-width:0;}
+.q-card-label{font-size:15px;font-weight:700;}
+.q-card-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.q-card-extras{font-size:10px;color:var(--text3);margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;}
+.q-badge-mini{background:var(--surf3);border:1px solid var(--border);border-radius:5px;padding:2px 6px;color:var(--accent3);font-size:9px;font-weight:700;letter-spacing:.4px;}
+.q-card-badge{font-size:10px;font-weight:700;background:linear-gradient(120deg,var(--accent3),var(--accent2));color:#fff;padding:4px 10px;border-radius:20px;flex-shrink:0;letter-spacing:.5px;box-shadow:0 3px 10px var(--glow);}
+.q-card-arrow{color:var(--text3);font-size:17px;flex-shrink:0;}
+
+/* ══════ PLAYER ══════ */
+#player-screen{position:fixed;inset:0;z-index:50;background:#000;display:none;}
+#player-screen.active{display:block;}
+.force-fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;z-index:999999!important;background:#000!important;margin:0!important;overflow:hidden!important;}
+video#vid{width:100%;height:100%;display:block;background:#000;object-fit:contain;}
+#loader{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(9,7,15,.94);z-index:20;}
+#loader-ch-logo{width:58px;height:58px;border-radius:15px;background:var(--surf2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;margin-bottom:4px;}
+#loader-ch-logo img{width:100%;height:100%;object-fit:cover;border-radius:13px;}
+#loader-ch-name{font-size:15px;font-weight:700;color:#fff;}
+#loader-status{font-size:13px;color:var(--text2);margin-top:4px;}
+.spin{width:44px;height:44px;border:3px solid rgba(139,92,246,.18);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#err-box{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(9,7,15,.97);z-index:20;padding:24px;text-align:center;}
+#err-icon{font-size:52px;}
+#err-title{font-size:18px;font-weight:800;margin-top:4px;}
+#err-msg{font-size:13px;color:var(--text2);line-height:1.6;max-width:280px;}
+.err-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+.err-btn{border:none;border-radius:var(--radius-s);padding:11px 28px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .12s;}
+.err-btn:active{opacity:.8;transform:scale(.96);}
+.err-btn-primary{background:linear-gradient(120deg,var(--accent3),var(--accent2));color:#fff;box-shadow:0 6px 18px var(--glow);}
+.err-btn-secondary{background:var(--surface);color:#fff;border:1px solid var(--border);}
+#buffering{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;pointer-events:none;}
+#buffering.show{display:flex;}
+#buffering .spin{width:38px;height:38px;}
+#tap-zone{position:absolute;inset:0;z-index:5;cursor:pointer;}
+#dtap{position:absolute;z-index:12;background:rgba(139,92,246,.22);border-radius:50%;width:72px;height:72px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:700;pointer-events:none;opacity:0;transition:opacity .18s;}
+#center-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:11;width:68px;height:68px;background:linear-gradient(145deg,var(--accent3),var(--accent2));border-radius:50%;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .2s;box-shadow:0 8px 26px var(--glow);}
+#center-play.show{opacity:1;}
+#top-bar{position:absolute;top:0;left:0;right:0;z-index:10;background:linear-gradient(to bottom,rgba(9,7,15,.92) 0%,transparent 100%);padding:calc(14px + env(safe-area-inset-top,0px)) 14px 38px;display:flex;align-items:center;gap:12px;opacity:0;transition:opacity .22s;pointer-events:none;}
+#top-bar.show{opacity:1;pointer-events:auto;}
+#back-top{width:38px;height:38px;background:rgba(255,255,255,.08);border:none;border-radius:10px;color:#fff;font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+#ch-logo-player{width:38px;height:38px;border-radius:9px;background:var(--surf2);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden;}
+#ch-logo-player img{width:100%;height:100%;object-fit:cover;border-radius:8px;}
+#ch-info-player{flex:1;min-width:0;}
+#ch-name-player{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#ch-quality-player{font-size:11px;color:rgba(255,255,255,.55);margin-top:1px;}
+#live-pill{display:flex;align-items:center;gap:5px;background:rgba(139,92,246,.18);border:1px solid var(--accent);border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;color:var(--accent3);flex-shrink:0;}
+#live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+#bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:10;background:linear-gradient(to top,rgba(9,7,15,.97) 0%,transparent 100%);padding:40px 14px calc(16px + env(safe-area-inset-bottom,0px));opacity:0;transition:opacity .22s;pointer-events:none;}
+#bottom-bar.show{opacity:1;pointer-events:auto;}
+#q-row-player{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.q-pill{padding:5px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.q-pill:active{transform:scale(.92);}
+.q-pill.active{background:linear-gradient(120deg,var(--accent3),var(--accent2));border-color:var(--accent);box-shadow:0 0 14px var(--glow);}
+#btn-row{display:flex;align-items:center;gap:2px;}
+.cb{background:none;border:none;color:#fff;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;flex-shrink:0;}
+.cb:active{background:rgba(139,92,246,.22);}
+#vol-wrap{display:flex;align-items:center;gap:6px;}
+#vol-slider{width:62px;height:3px;accent-color:var(--accent);cursor:pointer;}
+#btn-spacer{flex:1;}
+</style>
 </head>
-<body>Redirecting...</body>
+<body>
+
+<!-- ══════ HOME SCREEN (قائمة القنوات من JSON على GitHub) ══════ -->
+<div id="home-screen">
+  <div id="home-header">
+    <div class="logo-box">📺</div>
+    <div><h1 id="home-title">القنوات</h1><p id="home-sub">اختر قناة للمشاهدة</p></div>
+  </div>
+  <div id="home-search-wrap">
+    <input id="home-search" type="text" placeholder="ابحث عن قناة..." oninput="filterChannels(this.value)">
+  </div>
+  <div id="home-list"></div>
+</div>
+
+<!-- ══════ PICKER SCREEN ══════ -->
+<div id="picker-screen" class="hidden">
+  <div id="picker-header">
+    <button id="picker-back" onclick="backToHome()">←</button>
+    <div class="logo-box">📺</div>
+    <div><h1 id="picker-title">جاري التحميل...</h1><p id="picker-sub">اختر جودة البث</p></div>
+  </div>
+  <div id="channel-hero">
+    <div id="channel-logo-big">📺</div>
+    <div id="hero-text">
+      <div id="channel-hero-name">...</div>
+      <div id="channel-hero-desc"></div>
+    </div>
+  </div>
+  <div id="quality-label">اختر جودة البث</div>
+  <div id="quality-list"></div>
+</div>
+
+<!-- ══════ PLAYER SCREEN ══════ -->
+<div id="player-screen">
+  <video id="vid" playsinline autoplay></video>
+  <div id="buffering"><div class="spin"></div></div>
+  <div id="loader">
+    <div id="loader-ch-logo">📺</div>
+    <div id="loader-ch-name"></div>
+    <div id="loader-quality" style="font-size:12px;color:var(--text2)"></div>
+    <div class="spin" style="margin-top:8px"></div>
+    <div id="loader-status">جاري الاتصال بالبث...</div>
+  </div>
+  <div id="err-box">
+    <div id="err-icon">📡</div>
+    <div id="err-title">تعذّر التشغيل</div>
+    <div id="err-msg">انقطع الاتصال بالبث</div>
+    <div class="err-actions">
+      <button class="err-btn err-btn-primary" onclick="retry()">🔄 إعادة المحاولة</button>
+      <button class="err-btn err-btn-secondary" onclick="goBack()">↩ العودة</button>
+    </div>
+  </div>
+  <div id="tap-zone"></div>
+  <div id="dtap"></div>
+  <div id="center-play"><svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>
+
+  <div id="top-bar">
+    <button id="back-top" onclick="goBack()">←</button>
+    <div id="ch-logo-player">📺</div>
+    <div id="ch-info-player">
+      <div id="ch-name-player">...</div>
+      <div id="ch-quality-player">بث مباشر</div>
+    </div>
+    <div id="live-pill"><div id="live-dot"></div>LIVE</div>
+  </div>
+
+  <div id="bottom-bar">
+    <div id="q-row-player"></div>
+    <div id="btn-row">
+      <button class="cb" id="play-btn" onclick="engine.togglePlay()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div id="vol-wrap">
+        <button class="cb" id="mute-btn" onclick="engine.toggleMute()">
+          <svg id="vol-icon" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        </button>
+        <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="1" oninput="engine.setVolume(parseFloat(this.value)); updateVolIcon();">
+      </div>
+      <div id="btn-spacer"></div>
+      <button class="cb" onclick="pip()" title="صورة داخل صورة">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19 7h-8v6h8V7zm2-4H3C1.9 3 1 3.9 1 5v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"/></svg>
+      </button>
+      <button class="cb" onclick="toggleFS()">
+        <svg id="fs-icon" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   INIT — تيليجرام + محرك المشغل
+══════════════════════════════════════════ */
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); tg.disableClosingConfirmation?.(); }
+
+const vid          = document.getElementById('vid');
+const loader        = document.getElementById('loader');
+const errBox        = document.getElementById('err-box');
+const topBar         = document.getElementById('top-bar');
+const bottomBar      = document.getElementById('bottom-bar');
+const playBtn        = document.getElementById('play-btn');
+const qRowPlayer      = document.getElementById('q-row-player');
+const bufferingEl     = document.getElementById('buffering');
+const homeScreen      = document.getElementById('home-screen');
+const pickerScreen    = document.getElementById('picker-screen');
+const playerScreen    = document.getElementById('player-screen');
+const dtap             = document.getElementById('dtap');
+const centerPlay       = document.getElementById('center-play');
+
+const channelId = new URLSearchParams(location.search).get('id');
+const BASE_URL  = (window.SERVER_BASE !== undefined ? window.SERVER_BASE : '');
+
+/* ⚠️ عدّل هذا الرابط ليشير إلى ملف JSON القنوات على GitHub (يفضّل رابط raw.githubusercontent.com) */
+const CHANNELS_JSON_URL = (window.CHANNELS_JSON_URL !== undefined)
+  ? window.CHANNELS_JSON_URL
+  : 'https://raw.githubusercontent.com/r2rr7m77r-rgb/my-redirect-app/refs/heads/main/chennl.json';
+
+let channelData = null;
+let allChannels = [];
+let ctrlTimer = null, ctrlVisible = false, isSoftFS = false, lastTap = 0;
+
+// محرك المشغل — كل منطق التشغيل الفعلي بملف player-engine.js المنفصل
+const engine = new PlayerEngine(vid, {
+  // مكان مناسب لإضافة رؤوس/توكنات مسموحة أو proxy rewriting لاحقاً:
+  requestInterceptor: (xhr, url) => { /* xhr.setRequestHeader('X-Token', '...') */ }
+});
+
+engine.addEventListener('loading',       e => showLoader('جاري الاتصال بالبث...'));
+engine.addEventListener('ready',         () => hideLoader());
+engine.addEventListener('reconnecting',  e => showLoader(`إعادة الاتصال... (${e.detail}/5)`));
+engine.addEventListener('recoveringMedia', () => showLoader('خطأ في الوسائط، جاري الإصلاح...'));
+engine.addEventListener('fallback',      e => showLoader(`تعذّر التشغيل، جاري تجربة جودة أخرى (${e.detail.label})...`));
+engine.addEventListener('fatal',         e => showErr(e.detail));
+engine.addEventListener('buffering',     () => bufferingEl.classList.add('show'));
+engine.addEventListener('bufferOk',      () => bufferingEl.classList.remove('show'));
+engine.addEventListener('stallDetected', () => bufferingEl.classList.add('show'));
+engine.addEventListener('levelSwitched', e => {
+  document.getElementById('ch-quality-player').textContent =
+    `${e.detail.label}${e.detail.height ? ' · ' + e.detail.height + 'p' : ''}`.trim();
+});
+engine.addEventListener('playStateChanged', () => {
+  playBtn.innerHTML = vid.paused ? ICON_PLAY : ICON_PAUSE;
+  centerPlay.classList.toggle('show', vid.paused);
+});
+
+/* ══════════════════════════════════════════
+   الصفحة الرئيسية — جلب قائمة القنوات من JSON (GitHub)
+══════════════════════════════════════════ */
+async function initHome() {
+  showHomeState('loading', 'جاري تحميل القنوات...');
+  try {
+    const res = await fetch(CHANNELS_JSON_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('http ' + res.status);
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (Array.isArray(data.channels) ? data.channels : null);
+    if (!list) throw new Error('bad format');
+    // نعرض فقط القنوات غير المعطّلة صراحةً (active !== false)
+    allChannels = list.filter(ch => ch.active !== false);
+    if (!allChannels.length) { showHomeState('empty', 'لا توجد قنوات', 'قائمة القنوات فارغة حالياً.'); return; }
+    renderHomeList(allChannels);
+  } catch (e) {
+    showHomeState('error', 'تعذّر تحميل القنوات', 'تحقق من رابط ملف القنوات أو من الاتصال بالإنترنت.');
+  }
+}
+
+function showHomeState(kind, title, msg) {
+  const list = document.getElementById('home-list');
+  if (kind === 'loading') {
+    list.innerHTML = `<div id="home-state"><div class="spin"></div><div id="home-state-title">${title}</div></div>`;
+  } else {
+    const icon = kind === 'empty' ? '📭' : '⚠️';
+    list.innerHTML = `
+      <div id="home-state">
+        <div id="home-state-icon">${icon}</div>
+        <div id="home-state-title">${title}</div>
+        <div id="home-state-msg">${msg || ''}</div>
+        ${kind === 'error' ? '<button id="home-retry-btn" onclick="initHome()">🔄 إعادة المحاولة</button>' : ''}
+      </div>`;
+  }
+}
+
+function renderHomeList(channels) {
+  const list = document.getElementById('home-list');
+  list.innerHTML = '';
+  if (!channels.length) {
+    list.innerHTML = `<div id="home-state"><div id="home-state-icon">🔍</div><div id="home-state-title">لا توجد نتائج</div></div>`;
+    return;
+  }
+  channels.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'ch-card';
+    card.innerHTML = `
+      <div class="ch-card-logo">${ch.logo ? `<img src="${ch.logo}" onerror="this.parentElement.textContent='📺'">` : '📺'}</div>
+      <div class="ch-card-info">
+        <div class="ch-card-name">${ch.name || ''}</div>
+        <div class="ch-card-desc">${ch.description || ''}</div>
+      </div>
+      <span class="ch-card-arrow">‹</span>`;
+    card.addEventListener('click', () => openChannel(ch));
+    list.appendChild(card);
+  });
+}
+
+function filterChannels(q) {
+  q = (q || '').trim().toLowerCase();
+  if (!q) { renderHomeList(allChannels); return; }
+  renderHomeList(allChannels.filter(ch => (ch.name || '').toLowerCase().includes(q)));
+}
+
+function openChannel(ch) {
+  channelData = ch;
+  buildPicker(ch);
+  homeScreen.classList.add('hidden');
+  pickerScreen.classList.remove('hidden');
+}
+
+function backToHome() {
+  pickerScreen.classList.add('hidden');
+  homeScreen.classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════
+   جلب قناة واحدة مباشرة عبر ?id= (وضع متوافق مع النسخة القديمة)
+══════════════════════════════════════════ */
+async function initSingleChannel() {
+  try {
+    const res = await fetch(BASE_URL + '/api/channel/' + channelId);
+    if (!res.ok) throw new Error('not found');
+    const ch = await res.json();
+    channelData = ch;
+    buildPicker(ch);
+    homeScreen.classList.add('hidden');
+    pickerScreen.classList.remove('hidden');
+  } catch (e) {
+    showPickerError('تعذّر تحميل القناة. تحقق من الاتصال.');
+    homeScreen.classList.add('hidden');
+    pickerScreen.classList.remove('hidden');
+  }
+}
+
+function qualityIcon(label) {
+  const l = label.toLowerCase();
+  if (l.includes('4k') || l.includes('2160')) return '🔷';
+  if (l.includes('1080') || l.includes('fhd')) return '🟣';
+  if (l.includes('720') || l.includes('hd')) return '🟡';
+  if (l.includes('480') || l.includes('sd')) return '🟢';
+  if (l.includes('360') || l.includes('low')) return '⚪';
+  return '📡';
+}
+function qualitySub(label) {
+  const l = label.toLowerCase();
+  if (l.includes('4k') || l.includes('2160')) return 'دقة عالية • 3840×2160';
+  if (l.includes('1080') || l.includes('fhd')) return 'دقة عالية جداً • 1920×1080';
+  if (l.includes('720') || l.includes('hd')) return 'دقة عالية • 1280×720';
+  if (l.includes('480') || l.includes('sd')) return 'دقة متوسطة • 854×480';
+  if (l.includes('360') || l.includes('low')) return 'دقة منخفضة • 640×360';
+  return 'بث مباشر • HLS';
+}
+
+function buildPicker(ch) {
+  document.getElementById('picker-title').textContent      = ch.name;
+  document.getElementById('picker-sub').textContent        = ch.description || 'اختر جودة البث';
+  document.getElementById('channel-hero-name').textContent = ch.name;
+  document.getElementById('channel-hero-desc').textContent = ch.description || '';
+
+  const logoBig = document.getElementById('channel-logo-big');
+  logoBig.innerHTML = ch.logo ? `<img src="${ch.logo}" onerror="this.parentElement.textContent='📺'">` : '📺';
+
+  const streams = ch.streams || [];
+  if (!streams.length) { showPickerError('لا توجد روابط بث لهذه القناة.'); return; }
+  engine.setQualitySources(streams);
+
+  const list = document.getElementById('quality-list');
+  list.innerHTML = '';
+  streams.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'q-card' + (i === 0 ? ' recommended' : '');
+    const typeBadge = PlayerEngine.isRawTs(s.url) ? '<span class="q-badge-mini">TS</span>' : '<span class="q-badge-mini">HLS</span>';
+    card.innerHTML = `
+      <div class="q-card-icon">${qualityIcon(s.label)}</div>
+      <div class="q-card-info">
+        <div class="q-card-label">${s.label}</div>
+        <div class="q-card-sub">${qualitySub(s.label)}</div>
+        <div class="q-card-extras">${typeBadge}</div>
+      </div>
+      ${i === 0 ? '<span class="q-card-badge">مُوصى به</span>' : ''}
+      <span class="q-card-arrow">›</span>`;
+    card.addEventListener('click', () => launchPlayer(i));
+    list.appendChild(card);
+  });
+}
+
+function showPickerError(msg) {
+  document.getElementById('picker-title').textContent = 'خطأ';
+  document.getElementById('quality-list').innerHTML = `
+    <div style="text-align:center;padding:48px 20px;color:var(--text2)">
+      <div style="font-size:44px;margin-bottom:14px">⚠️</div>
+      <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:8px">تعذّر التحميل</div>
+      <div style="font-size:13px;line-height:1.6">${msg}</div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════
+   إطلاق المشغل
+══════════════════════════════════════════ */
+function launchPlayer(idx) {
+  // نفعّل الصوت ونحاول تشغيل الفيديو ضمن نفس إيماءة ضغطة المستخدم
+  // (هذا التوقيت هو الوحيد المسموح فيه للمتصفح بصوت تلقائي بدون كتم)
+  vid.muted = false;
+  vid.volume = 1;
+  vid.play().catch(() => {});
+
+  pickerScreen.classList.add('hidden');
+  playerScreen.classList.add('active');
+  updatePlayerHeader(channelData);
+  buildQualityPills();
+  document.getElementById('loader-ch-name').textContent = channelData?.name || '';
+  const lLogo = document.getElementById('loader-ch-logo');
+  lLogo.innerHTML = channelData?.logo ? `<img src="${channelData.logo}" onerror="this.parentElement.textContent='📺'">` : '📺';
+  engine.playQuality(idx);
+}
+
+function goBack() {
+  if (isSoftFS || document.fullscreenElement || document.webkitFullscreenElement) exitAppFullscreen();
+  engine._teardownActivePlayers();
+  playerScreen.classList.remove('active');
+  pickerScreen.classList.remove('hidden');
+}
+
+function updatePlayerHeader(ch) {
+  document.getElementById('ch-name-player').textContent = ch.name;
+  const el = document.getElementById('ch-logo-player');
+  el.innerHTML = ch.logo ? `<img src="${ch.logo}" onerror="this.parentElement.textContent='📺'">` : '📺';
+}
+
+function buildQualityPills() {
+  qRowPlayer.innerHTML = '';
+  engine.qualitySources.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'q-pill' + (i === engine.currentQualityIdx ? ' active' : '');
+    btn.textContent = s.label;
+    btn.onclick = () => {
+      if (i === engine.currentQualityIdx) return;
+      document.querySelectorAll('.q-pill').forEach((b, bi) => b.classList.toggle('active', bi === i));
+      engine.playQuality(i);
+      scheduleHideControls();
+    };
+    qRowPlayer.appendChild(btn);
+  });
+}
+
+/* ══════════════════════════════════════════
+   تحكم اللمس والتحكمات
+══════════════════════════════════════════ */
+document.getElementById('tap-zone').addEventListener('click', e => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    lastTap = 0;
+    engine.togglePlay();
+    showDtapFeedback(e.clientX, e.clientY);
+  } else {
+    lastTap = now;
+    setTimeout(() => { if (Date.now() - lastTap >= 280) toggleControls(); }, 300);
+  }
+});
+function showDtapFeedback(x, y) {
+  dtap.style.left = (x - 36) + 'px';
+  dtap.style.top  = (y - 36) + 'px';
+  dtap.textContent = vid.paused ? '▶' : '⏸';
+  dtap.style.opacity = '1';
+  setTimeout(() => { dtap.style.opacity = '0'; }, 520);
+}
+function showControls()   { ctrlVisible = true;  topBar.classList.add('show'); bottomBar.classList.add('show'); scheduleHideControls(); }
+function hideControls()   { ctrlVisible = false; topBar.classList.remove('show'); bottomBar.classList.remove('show'); }
+function toggleControls() { ctrlVisible ? hideControls() : showControls(); }
+function scheduleHideControls() { clearTimeout(ctrlTimer); ctrlTimer = setTimeout(hideControls, 4500); }
+
+const ICON_PLAY  = `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>`;
+const ICON_PAUSE = `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+
+function updateVolIcon() {
+  document.getElementById('vol-icon').innerHTML = (vid.muted || vid.volume === 0)
+    ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
+    : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>';
+}
+
+function pip() {
+  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+  else if (vid.requestPictureInPicture) vid.requestPictureInPicture().catch(() => {});
+}
+
+/* ══════════════════════════════════════════
+   فل سكرين حقيقي شامل (Telegram + Fullscreen API + بديل CSS)
+══════════════════════════════════════════ */
+function isFullscreenActive() { return !!(document.fullscreenElement || document.webkitFullscreenElement || isSoftFS); }
+function toggleFS() { isFullscreenActive() ? exitAppFullscreen() : enterAppFullscreen(); }
+
+function enterAppFullscreen() {
+  if (tg && typeof tg.requestFullscreen === 'function') { try { tg.requestFullscreen(); } catch (e) {} }
+  const root = document.documentElement;
+  const req = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen || root.msRequestFullscreen;
+  if (req) {
+    Promise.resolve(req.call(root)).then(() => { lockLandscape(); updateFSIcon(); }).catch(() => softFS(true));
+  } else softFS(true);
+}
+function exitAppFullscreen() {
+  if (tg && typeof tg.exitFullscreen === 'function') { try { tg.exitFullscreen(); } catch (e) {} }
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { try { ex.call(document); } catch (e) {} }
+  }
+  if (isSoftFS) softFS(false);
+  unlockOrientation();
+  updateFSIcon();
+}
+function softFS(on) {
+  isSoftFS = on;
+  document.documentElement.classList.toggle('force-fullscreen', on);
+  document.body.classList.toggle('force-fullscreen', on);
+  playerScreen.classList.toggle('force-fullscreen', on);
+  if (on) lockLandscape(); else unlockOrientation();
+  updateFSIcon();
+}
+function lockLandscape() { try { screen.orientation?.lock('landscape').catch(() => {}); } catch (e) {} }
+function unlockOrientation() { try { screen.orientation?.unlock(); } catch (e) {} }
+function updateFSIcon() {
+  const isFS = isFullscreenActive();
+  document.getElementById('fs-icon').innerHTML = isFS
+    ? '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zM14 5v2h3v3h2V5h-5z"/>'
+    : '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>';
+}
+document.addEventListener('fullscreenchange',       () => { if (!document.fullscreenElement) unlockOrientation(); updateFSIcon(); });
+document.addEventListener('webkitfullscreenchange', () => { if (!document.webkitFullscreenElement) unlockOrientation(); updateFSIcon(); });
+
+/* ══════════════════════════════════════════
+   حالات التحميل/الخطأ
+══════════════════════════════════════════ */
+function showLoader(msg) {
+  document.getElementById('loader-status').textContent = msg || 'جاري التحميل...';
+  loader.style.display = 'flex';
+  errBox.style.display = 'none';
+}
+function hideLoader() { loader.style.display = 'none'; showControls(); }
+function showErr(msg) {
+  document.getElementById('err-msg').textContent = msg;
+  loader.style.display = 'none';
+  errBox.style.display = 'flex';
+}
+function retry() { errBox.style.display = 'none'; engine.qualityFallbackTried.clear(); engine.playQuality(engine.currentQualityIdx); }
+
+/* ══════════════════════════════════════════
+   نقطة البداية:
+   - إذا وُجد ?id= في الرابط → وضع قناة واحدة مباشرة (يُبقي التوافق مع النسخة القديمة)
+   - غير ذلك → الصفحة الرئيسية بقائمة القنوات من JSON على GitHub
+══════════════════════════════════════════ */
+pickerScreen.classList.add('hidden');
+if (channelId) {
+  homeScreen.classList.add('hidden');
+  initSingleChannel();
+} else {
+  initHome();
+}
+</script>
+</body>
 </html>
