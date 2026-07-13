@@ -1,0 +1,36 @@
+[
+  {
+    "id": "a74653dd",
+    "name": "قناة دجلة",
+    "logo": "",
+    "description": "بث",
+    "streams": [
+      {
+        "label": "1080p",
+        "url": "https://ghaasiflu.online/Dijlah/index.m3u8",
+        "user_agent": "",
+        "referer": "",
+        "clear_key": ""
+      }
+    ],
+    "active": true,
+    "created": "2026-07-13T20:53:49.459404"
+  },
+  {
+    "id": "037dd1ce",
+    "name": "Test",
+    "logo": "",
+    "description": "Test",
+    "streams": [
+      {
+        "label": "1080p",
+        "url": "https://lb1.aab1.top/odai/123321/185.ts",
+        "user_agent": "",
+        "referer": "",
+        "clear_key": ""
+      }
+    ],
+    "active": true,
+    "created": "2026-07-13T23:13:35.539620"
+  }
+]
