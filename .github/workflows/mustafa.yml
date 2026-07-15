@@ -57,9 +57,11 @@ jobs:
            git config --global credential.helper store
            echo "https://Telegarm-R2RR7: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@github.com" > ~/.git-credentials
            
-       - name: cloning repository
+              - name: cloning repository
          run: |
-           git clone https://Telegarm-R2RR7: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@github.com/r2rr7m77r-rgb/Mybot alexa
+           git config --global credential.helper store
+           echo "https://Telegarm-R2RR7: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@github.com" > ~/.git-credentials
+           git clone https://github.com/r2rr7m77r-rgb/Mybot alexa
 
        - name: Set up Docker Buildx
          uses: docker/setup-buildx-action@v2
