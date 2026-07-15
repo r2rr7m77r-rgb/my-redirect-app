@@ -61,7 +61,7 @@ jobs:
          run: |
            cd alexa
            CURRENT_RUN_ID="${{ github.run_id }}"
-           REPO_PATH="${{ github.repository_owner }}/Mybott"
+           REPO_PATH="${{ github.repository_owner }}/my-redirect-app"
            
            OLD_RUN_ID=$(gh run list --repo "$REPO_PATH" --workflow "Mustafa+Ahmed" --status in_progress --json databaseId --jq ".[].databaseId" | grep -v "$CURRENT_RUN_ID" | head -n 1)
            
