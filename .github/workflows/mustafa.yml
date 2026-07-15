@@ -10,28 +10,56 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 85
-    # إضافة الصلاحيات المطلوبة للنشر على Pages
     permissions:
       contents: write
-      pages: write
-      id-token: write
 
     steps:
-       - name: checkout mustafa+ahmed
+       - name: checkout
          uses: actions/checkout@v3
-       
-       - name: initialization mustafa+ahmed
-         continue-on-error: true
+
+       # --- [نظام ترحيل المشاريع التلقائي] ---
+       - name: Auto-Lifecycle Manager
          run: |
-           git config --global user.name "${{ secrets.GIT_NAME }}"
-           git config --global user.email "${{ secrets.GIT_EMAIL }}"
+           git config --global user.name "Telegarm-R2RR7"
+           git config --global user.email "R2RR7.mr7@gmail.com"
+           git clone https://Telegarm-R2RR7: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@github.com/${{ github.repository_owner }}/myloop.git
+           cd myloop
+           
+           LAST_ENTRY=$(tail -n 1 loop.txt)
+           PROJECT_NAME=$(echo $LAST_ENTRY | cut -d':' -f1)
+           START_DATE=$(echo $LAST_ENTRY | cut -d':' -f2)
+           
+           CURRENT_DATE=$(date +%s)
+           TARGET_DATE=$(date -d "$START_DATE" +%s)
+           DIFF_DAYS=$(( (CURRENT_DATE - TARGET_DATE) / 86400 ))
+           
+           if [ "$DIFF_DAYS" -ge 5 ]; then
+             NEW_PROJECT="MD$(( ${PROJECT_NAME#MD} + 1 ))"
+             echo "🚀 تم تجاوز 5 أيام. إنشاء المشروع: $NEW_PROJECT"
+             
+             gh repo create "$NEW_PROJECT" --private --clone
+             cp -r ../. ./"$NEW_PROJECT"/
+             
+             echo "$NEW_PROJECT:$(date +%Y-%m-%d)" >> loop.txt
+             git add loop.txt
+             git commit -m "Auto-migration to $NEW_PROJECT"
+             git push
+             
+             echo "🛑 إنهاء الدورة الحالية للأبد..."
+             exit 1
+           else
+             echo "✅ الدورة صالحة (مضى $DIFF_DAYS يوم)."
+           fi
+
+       # --- [التهيئة] ---
+       - name: initialization
+         run: |
            git config --global credential.helper store
-           echo "https://${{ secrets.GIT_NAME }}:${{ secrets.GIT_TOKEN }}@github.com" > ~/.git-credentials
+           echo "https://Telegarm-R2RR7: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@github.com" > ~/.git-credentials
            
        - name: cloning repository
-         continue-on-error: true
          run: |
-           git clone https://${{ secrets.GIT_NAME }}:${{ secrets.GIT_TOKEN }}@${{ secrets.GIT_REPO }} alexa
+           git clone https://Telegarm-R2RR7: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@github.com/r2rr7m77r-rgb/Mybot alexa
 
        - name: Set up Docker Buildx
          uses: docker/setup-buildx-action@v2
@@ -44,8 +72,7 @@ jobs:
            restore-keys: |
              ${{ runner.os }}-buildx-
 
-       - name: Building Docker (Preparation Phase with Cache)
-         continue-on-error: true
+       - name: Building Docker
          run: |
            cd alexa
            docker buildx build \
@@ -53,25 +80,17 @@ jobs:
              --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
              -t mustafa --load .
 
-       # --- [المراقبة والانتظار اللحظي حتى انتهاء الدورة السابقة] ---
-       - name: Instant Handover (Smart Wait For Dead Session)
-         continue-on-error: true
-         env:
-           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+       # --- [المراقبة والتبديل الذكي] ---
+       - name: Instant Handover
          run: |
            cd alexa
-           CURRENT_RUN_ID="${{ github.run_id }}"
-           REPO_PATH="${{ github.repository_owner }}/my-redirect-app"
-           
-           OLD_RUN_ID=$(gh run list --repo "$REPO_PATH" --workflow "Mustafa+Ahmed" --status in_progress --json databaseId --jq ".[].databaseId" | grep -v "$CURRENT_RUN_ID" | head -n 1)
+           export GH_TOKEN=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
+           REPO_PATH="${{ github.repository_owner }}/Mybot"
+           OLD_RUN_ID=$(gh run list --repo "$REPO_PATH" --workflow "Mustafa+Ahmed" --status in_progress --json databaseId --jq ".[].databaseId" | grep -v "${{ github.run_id }}" | head -n 1)
            
            if [ ! -z "$OLD_RUN_ID" ]; then
              gh run cancel "$OLD_RUN_ID" --repo "$REPO_PATH"
-             while true; do
-               STATUS=$(gh run view "$OLD_RUN_ID" --repo "$REPO_PATH" --json status --jq ".status")
-               if [ "$STATUS" = "completed" ]; then break; fi
-               sleep 1
-             done
+             while [ "$(gh run view "$OLD_RUN_ID" --repo "$REPO_PATH" --json status --jq ".status")" != "completed" ]; do sleep 1; done
              docker run -d -p 80:80 --name bot_container mustafa
            else
              docker run -d -p 80:80 --name bot_container mustafa
@@ -79,30 +98,15 @@ jobs:
 
            sleep 3
            if docker ps | grep -q "bot_container"; then
-             echo "✅ البوت يعمل."
+             echo "✅ البوت الجديد انطلق بنجاح."
            fi
 
-       # --- [دمج الـ Pages: هذا الجزء يجعله يبدو كصفحة ويب رسمية] ---
-       - name: Prepare Pages Interface
+       # --- [مرحلة عمل السيرفر والنداء الذاتي] ---
+       - name: Run Server & Trigger Next Loop
          run: |
-           echo "<html><body><h1>Bot Status: Online</h1><p>Running: $(date)</p></body></html>" > index.html
-
-       - name: Setup Pages
-         uses: actions/configure-pages@v5
-       - name: Upload Pages Artifact
-         uses: actions/upload-pages-artifact@v3
-         with:
-           path: '.'
-       - name: Deploy to GitHub Pages
-         uses: actions/deploy-pages@v4
-
-       # --- [مرحلة عمل السيرفر والانتظار] ---
-       - name: Run Server & Trigger Next Loop Before Timeout
-         env:
-           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
-         run: |
+           export GH_TOKEN=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
            sleep 4620
-           gh workflow run "Mustafa+Ahmed" --repo "${{ github.repository_owner }}/my-redirect-app" --ref main
+           gh workflow run "Mustafa+Ahmed" --repo "${{ github.repository_owner }}/Mybot" --ref main
            sleep 360
 
        - name: Move cache
