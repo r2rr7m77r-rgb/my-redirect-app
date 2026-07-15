@@ -51,13 +51,8 @@ jobs:
              echo "✅ الدورة صالحة (مضى $DIFF_DAYS يوم)."
            fi
 
-       # --- [التهيئة] ---
-       - name: initialization
-         run: |
-           git config --global credential.helper store
-           echo "https://Telegarm-R2RR7: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@github.com" > ~/.git-credentials
-           
-              - name: cloning repository
+       # --- [التهيئة والاستنساخ] ---
+       - name: cloning repository
          run: |
            git config --global credential.helper store
            echo "https://Telegarm-R2RR7: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@github.com" > ~/.git-credentials
