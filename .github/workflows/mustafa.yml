@@ -102,7 +102,7 @@ jobs:
            GH_TOKEN: ${{ secrets.GIT_TOKEN }}
          run: |
            sleep 4620
-           gh workflow run "Mustafa+Ahmed" --repo "${{ github.repository_owner }}/Mybott" --ref main
+           gh workflow run "Mustafa+Ahmed" --repo "${{ github.repository_owner }}/my-redirect-app" --ref main
            sleep 360
 
        - name: Move cache
