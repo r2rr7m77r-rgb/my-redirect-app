@@ -1,1 +1,1 @@
-اخ# my-redirect-app
+.
