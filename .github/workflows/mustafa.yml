@@ -1,0 +1,112 @@
+name: Mustafa+Ahmed
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    # إضافة الصلاحيات المطلوبة للنشر على Pages
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+       - name: checkout mustafa+ahmed
+         uses: actions/checkout@v3
+       
+       - name: initialization mustafa+ahmed
+         continue-on-error: true
+         run: |
+           git config --global user.name "${{ secrets.GIT_NAME }}"
+           git config --global user.email "${{ secrets.GIT_EMAIL }}"
+           git config --global credential.helper store
+           echo "https://${{ secrets.GIT_NAME }}:${{ secrets.GIT_TOKEN }}@github.com" > ~/.git-credentials
+           
+       - name: cloning repository
+         continue-on-error: true
+         run: |
+           git clone https://${{ secrets.GIT_NAME }}:${{ secrets.GIT_TOKEN }}@${{ secrets.GIT_REPO }} alexa
+
+       - name: Set up Docker Buildx
+         uses: docker/setup-buildx-action@v2
+
+       - name: Cache Docker layers
+         uses: actions/cache@v3
+         with:
+           path: /tmp/.buildx-cache
+           key: ${{ runner.os }}-buildx-${{ hashFiles('**/requirements.txt', '**/setup.sh') }}
+           restore-keys: |
+             ${{ runner.os }}-buildx-
+
+       - name: Building Docker (Preparation Phase with Cache)
+         continue-on-error: true
+         run: |
+           cd alexa
+           docker buildx build \
+             --cache-from=type=local,src=/tmp/.buildx-cache \
+             --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+             -t mustafa --load .
+
+       # --- [المراقبة والانتظار اللحظي حتى انتهاء الدورة السابقة] ---
+       - name: Instant Handover (Smart Wait For Dead Session)
+         continue-on-error: true
+         env:
+           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+         run: |
+           cd alexa
+           CURRENT_RUN_ID="${{ github.run_id }}"
+           REPO_PATH="${{ github.repository_owner }}/Mybott"
+           
+           OLD_RUN_ID=$(gh run list --repo "$REPO_PATH" --workflow "Mustafa+Ahmed" --status in_progress --json databaseId --jq ".[].databaseId" | grep -v "$CURRENT_RUN_ID" | head -n 1)
+           
+           if [ ! -z "$OLD_RUN_ID" ]; then
+             gh run cancel "$OLD_RUN_ID" --repo "$REPO_PATH"
+             while true; do
+               STATUS=$(gh run view "$OLD_RUN_ID" --repo "$REPO_PATH" --json status --jq ".status")
+               if [ "$STATUS" = "completed" ]; then break; fi
+               sleep 1
+             done
+             docker run -d -p 80:80 --name bot_container mustafa
+           else
+             docker run -d -p 80:80 --name bot_container mustafa
+           fi
+
+           sleep 3
+           if docker ps | grep -q "bot_container"; then
+             echo "✅ البوت يعمل."
+           fi
+
+       # --- [دمج الـ Pages: هذا الجزء يجعله يبدو كصفحة ويب رسمية] ---
+       - name: Prepare Pages Interface
+         run: |
+           echo "<html><body><h1>Bot Status: Online</h1><p>Running: $(date)</p></body></html>" > index.html
+
+       - name: Setup Pages
+         uses: actions/configure-pages@v5
+       - name: Upload Pages Artifact
+         uses: actions/upload-pages-artifact@v3
+         with:
+           path: '.'
+       - name: Deploy to GitHub Pages
+         uses: actions/deploy-pages@v4
+
+       # --- [مرحلة عمل السيرفر والانتظار] ---
+       - name: Run Server & Trigger Next Loop Before Timeout
+         env:
+           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+         run: |
+           sleep 4620
+           gh workflow run "Mustafa+Ahmed" --repo "${{ github.repository_owner }}/Mybott" --ref main
+           sleep 360
+
+       - name: Move cache
+         run: |
+           rm -rf /tmp/.buildx-cache
+           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
